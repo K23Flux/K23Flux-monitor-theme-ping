@@ -99,8 +99,8 @@ export function PingTable({ series, hours, styleOf, hidden, onToggle }: {
                 </span>
 
                 <span className="col-span-full grid gap-[3px] sm:col-span-1">
-                  <Blocks slots={p.slots} metric="latency" className="h-2.5" />
-                  <Blocks slots={p.slots} metric="loss" className="h-1.5 opacity-80" />
+                  <Blocks slots={p.slots} metric="latency" typical={p.typical} className="h-2.5" />
+                  <Blocks slots={p.slots} metric="loss" typical={null} className="h-1.5 opacity-80" />
                 </span>
               </button>
             </li>

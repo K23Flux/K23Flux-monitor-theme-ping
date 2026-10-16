@@ -2,7 +2,7 @@ import { useMemo } from "react"
 
 import type { Node } from "@/lib/api"
 import {
-  cardProbes, fmtLoss, fmtMs, parseSelection, signal, signalText, useNodePing,
+  cardProbes, fmtLoss, fmtMs, latencySignal, lossSignal, parseSelection, signalText, useNodePing,
   type ProbeStats, type Slot,
 } from "@/lib/ping"
 import { cn } from "@/lib/utils"
@@ -18,7 +18,9 @@ function blockTitle(slot: Slot, metric: "latency" | "loss") {
 }
 
 /** A row of blocks, one per slot of the window, coloured by its step. */
-export function Blocks({ slots, metric, className }: { slots: Slot[]; metric: "latency" | "loss"; className?: string }) {
+export function Blocks({ slots, metric, typical, className }: {
+  slots: Slot[]; metric: "latency" | "loss"; typical: number | null; className?: string
+}) {
   return (
     <div
       className={cn("grid gap-[2px]", className)}
@@ -27,7 +29,7 @@ export function Blocks({ slots, metric, className }: { slots: Slot[]; metric: "l
     >
       {slots.map((slot, i) => {
         // A block where nothing answered is the worst latency there is.
-        const step = !slot ? 0 : metric === "loss" ? signal(slot.loss, "loss") : slot.latency === null ? 5 : signal(slot.latency, "latency")
+        const step = !slot ? 0 : metric === "loss" ? lossSignal(slot.loss) : slot.latency === null ? 5 : latencySignal(slot.latency, typical)
         return (
           <span
             key={i}
@@ -42,7 +44,7 @@ export function Blocks({ slots, metric, className }: { slots: Slot[]; metric: "l
 }
 
 export function LatencyValue({ probe, className }: { probe: ProbeStats; className?: string }) {
-  const step = probe.timedOut ? 5 : signal(probe.latest, "latency")
+  const step = probe.timedOut ? 5 : latencySignal(probe.latest, probe.typical)
   return (
     <strong className={cn("tnum font-medium", className)} style={{ color: signalText(step) }}>
       {probe.latest !== null ? fmtMs(probe.latest) : probe.timedOut ? "超时" : "—"}
@@ -53,7 +55,7 @@ export function LatencyValue({ probe, className }: { probe: ProbeStats; classNam
 
 export function LossValue({ probe, className }: { probe: ProbeStats; className?: string }) {
   return (
-    <strong className={cn("tnum font-medium", className)} style={{ color: signalText(signal(probe.loss, "loss")) }}>
+    <strong className={cn("tnum font-medium", className)} style={{ color: signalText(lossSignal(probe.loss)) }}>
       {probe.loss === null ? "—" : fmtLoss(probe.loss)}
       {probe.loss !== null && <small className="ml-0.5 text-[10px] font-normal text-muted-foreground">%</small>}
     </strong>
@@ -92,14 +94,14 @@ export function PingPanel({ node, options }: { node: Node; options: PingOptions 
               <span className="truncate text-muted-foreground">{p.name}</span>
               <LatencyValue probe={p} className="text-xs" />
             </div>
-            <Blocks slots={p.slots} metric="latency" className="h-[9px]" />
+            <Blocks slots={p.slots} metric="latency" typical={p.typical} className="h-[9px]" />
           </div>
           <div className="min-w-0">
             <div className="mb-1.5 flex items-baseline justify-between gap-1.5">
               <span className="text-muted-foreground" title={`近 ${hours} 小时丢包率`}>丢包</span>
               <LossValue probe={p} className="text-xs" />
             </div>
-            <Blocks slots={p.slots} metric="loss" className="h-[9px]" />
+            <Blocks slots={p.slots} metric="loss" typical={null} className="h-[9px]" />
           </div>
         </div>
       ))}

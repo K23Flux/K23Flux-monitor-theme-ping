@@ -34,6 +34,8 @@ export type ProbeStats = {
   avg: number | null
   min: number | null
   max: number | null
+  /** The line's usual latency: the median of the answered buckets in the window. */
+  typical: number | null
   /** Window loss in percent, null without samples. */
   loss: number | null
   slots: Slot[]
@@ -102,6 +104,13 @@ export function buildSlots(rows: PingRow[], since: number, until: number, count:
   return sums.map((s) => (s.n ? { ts: s.ts, latency: s.answered ? s.latency / s.answered : null, loss: s.loss / s.n } : null))
 }
 
+function median(values: number[]): number | null {
+  if (!values.length) return null
+  const v = [...values].sort((a, b) => a - b)
+  const mid = v.length >> 1
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2
+}
+
 export function probeStats(
   data: PingData, probe: { id: number; name: string }, since: number, until: number, slots: number,
 ): ProbeStats {
@@ -116,6 +125,7 @@ export function probeStats(
     avg: answered.length ? answered.reduce((a, b) => a + b, 0) / answered.length : null,
     min: answered.length ? Math.min(...answered) : null,
     max: answered.length ? Math.max(...answered) : null,
+    typical: median(answered),
     loss: rows.length ? (data.loss?.[probe.id] ?? 0) : null,
     slots: buildSlots(rows, since, until, slots),
     hasData: rows.length > 0,
@@ -148,14 +158,28 @@ export function pairOrder<T extends { name: string }>(probes: T[]): T[] {
 }
 
 /**
- * Glassmorphism's five steps: 1 is the best, 5 the worst, 0 no data. From
- * Jiangsu, 60 ms is Japan or Hong Kong, 200 ms the US West Coast.
+ * Five steps, 1 the best and 5 the worst, 0 no data. Loss is judged by the
+ * figure itself, Glassmorphism's steps. Latency is judged against the line's own
+ * usual: 270 ms is normal to the other side of the world and a fault to the next
+ * city, so what colours a figure is how far above its line's median it is, as a
+ * share of that median -- with a floor of 30 ms on the median, so that a line
+ * that normally answers in 3 ms is not alarming at 6.
  */
-const STEPS = { latency: [60, 100, 160, 200], loss: [1, 3, 6, 9] }
+const LOSS_STEPS = [1, 3, 6, 9]
+const LATENCY_STEPS = [0.25, 0.6, 1.2, 2]
+const LATENCY_FLOOR = 30
 
-export function signal(value: number | null, metric: "latency" | "loss"): number {
-  if (value === null) return 0
-  const i = STEPS[metric].findIndex((t) => value <= t)
+export function lossSignal(loss: number | null): number {
+  if (loss === null) return 0
+  const i = LOSS_STEPS.findIndex((t) => loss <= t)
+  return i < 0 ? 5 : i + 1
+}
+
+export function latencySignal(ms: number | null, typical: number | null): number {
+  if (ms === null) return 0
+  if (typical === null) return 1
+  const excess = (ms - typical) / Math.max(typical, LATENCY_FLOOR)
+  const i = LATENCY_STEPS.findIndex((t) => excess <= t)
   return i < 0 ? 5 : i + 1
 }
 

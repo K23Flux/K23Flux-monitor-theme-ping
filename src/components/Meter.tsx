@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-type Props = { label: ReactNode; pct: number | null; foot: ReactNode; empty?: ReactNode }
+type Props = { label: ReactNode; pct: number | null; foot?: ReactNode; empty?: ReactNode }
 
 /**
  * One metric: name and percentage on top, bar in the middle, raw numbers
@@ -23,7 +23,8 @@ export function Meter({ label, pct, foot, empty = "—" }: Props) {
       <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-foreground transition-[width] duration-500" style={{ width: `${filled}%` }} />
       </div>
-      <div className="tnum mt-1.5 truncate text-xs text-muted-foreground">{foot}</div>
+      {/* A meter without a foot keeps the line, so its neighbour's stays level. */}
+      <div className="tnum mt-1.5 truncate text-xs text-muted-foreground">{foot ?? "\u00a0"}</div>
     </div>
   )
 }

@@ -84,21 +84,55 @@ const TOOLTIP = {
 // collision pass would nudge the top label 5 px inward, drop the tick beneath it,
 // and thin the gridlines separately -- the CPU axis would lose its 30% gridline,
 // and a rate axis of 1 KB/s to 100 MB/s its 10 MB/s label and two gridlines.
-const VALUE_AXIS = { ...AXIS, width: 68, interval: 0 }
+// Room above the plot: the top tick label is centred on the top gridline and
+// would otherwise lose its upper half to the panel edge.
+const CHART_MARGIN = { top: 10, right: 4, bottom: 0, left: 0 }
+const VALUE_AXIS = { ...AXIS, width: 80, interval: 0 }
 
 // The latency chart's lines. Six greys cannot be told apart, so each line is
 // coloured by carrier, and the IPv6 twin takes its IPv4 line's colour dashed.
 const CARRIERS = ["#3b82f6", "#f59e0b", "#10b981", "#a855f7", "#ef4444", "#06b6d4"]
+
+// The two directions of the network chart. Told apart by hue, not by shade: in
+// the dark theme white and light grey are hard to separate.
+const RX = "#3b82f6"
+const TX = "#f59e0b"
+
+function Swatch({ color, dash, width = 18 }: { color: string; dash?: string; width?: number }) {
+  return (
+    <svg width={width} height="8" className="shrink-0" aria-hidden>
+      <line x1="1" y1="4" x2={width - 1} y2="4" stroke={color} strokeWidth="2" strokeLinecap="round" strokeDasharray={dash} />
+    </svg>
+  )
+}
+
+/** What the network chart's lines are, drawn rather than described. */
+function RateLegend() {
+  const item = "inline-flex items-center gap-1.5"
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+      <span className={item}><Swatch color={RX} />下行</span>
+      <span className={item}><Swatch color={TX} />上行</span>
+      <span className="hidden h-3 w-px bg-border sm:block" />
+      <span className={item}><Swatch color="currentColor" />平均</span>
+      <span className={item}><Swatch color="currentColor" dash="3 3" />峰值（一分钟内最高）</span>
+      <span className="opacity-70">对数刻度</span>
+    </div>
+  )
+}
 
 const TABS = [
   { key: "resources", label: "资源" },
   { key: "latency", label: "网络延迟" },
 ] as const
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, legend, children }: { title: string; legend?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="mb-2 text-xs font-medium text-muted-foreground">{title}</h4>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <h4 className="text-xs font-medium text-muted-foreground">{title}</h4>
+        {legend}
+      </div>
       <div className="h-40 w-full text-muted-foreground">{children}</div>
     </div>
   )
@@ -500,7 +534,7 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
                 <p className="py-8 text-center text-sm">没有选中任何探测</p>
               ) : (
                 <ResponsiveContainer>
-                  <ComposedChart data={pingRows}>
+                  <ComposedChart data={pingRows} margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                     <XAxis
                       {...timeAxis(
@@ -583,7 +617,7 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
         <div className="space-y-5">
           <Panel title="CPU">
             <ResponsiveContainer>
-              <AreaChart data={chartRows}>
+              <AreaChart data={chartRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(chartRows)} />
                 <YAxis {...axes.cpu} unit="%" {...VALUE_AXIS} />
@@ -600,7 +634,7 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
               title because the axis top is claiming it. */}
           <Panel title={`内存 · ${bytes(node.mem_total)}`}>
             <ResponsiveContainer>
-              <AreaChart data={chartRows}>
+              <AreaChart data={chartRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(chartRows)} />
                 <YAxis domain={[0, node.mem_total]} ticks={quarters(node.mem_total)} tickFormatter={axisBytes} {...VALUE_AXIS} />
@@ -626,9 +660,9 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
               the rates are told apart by shade, and a faded edge of one would
               take the shade of the other's line. Its lower edge lies under the
               line. */}
-          <Panel title={peak ? `网络速率 · 峰值 ↓ ${rate(peak.rx)} · ↑ ${rate(peak.tx)}` : "网络速率"}>
+          <Panel title={peak ? `网络速率 · 窗口内峰值 ↓ ${rate(peak.rx)} · ↑ ${rate(peak.tx)}` : "网络速率"} legend={<RateLegend />}>
             <ResponsiveContainer>
-              <ComposedChart data={chartRows}>
+              <ComposedChart data={chartRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(chartRows)} />
                 <YAxis scale="log" {...axes.rate} tickFormatter={axisBytes} unit="/s" {...VALUE_AXIS} />
@@ -639,28 +673,29 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
                   formatter={(_, name, item) => {
                     const mean = item?.payload?.[`net_${item.dataKey}`]
                     const top = item?.payload?.[`net_${item.dataKey}_max`]
-                    return [top === undefined ? rate(mean) : `均值 ${rate(mean)} · 峰值 ${rate(top)}`, name]
+                    return [top === undefined ? rate(mean) : `平均 ${rate(mean)} · 峰值 ${rate(top)}`, name]
                   }}
                 />
                 {[
-                  { key: "rx", stroke: "var(--color-ok)" },
-                  { key: "tx", stroke: "var(--color-chart-1)" },
+                  { key: "rx", stroke: RX },
+                  { key: "tx", stroke: TX },
                 ].map((s) => (
                   <Area
                     key={s.key}
                     dataKey={`${s.key}_band`}
                     stroke={s.stroke}
                     strokeWidth={1}
-                    strokeDasharray="2 2"
+                    strokeOpacity={0.55}
+                    strokeDasharray="3 3"
                     fill={s.stroke}
-                    fillOpacity={0.16}
+                    fillOpacity={0.1}
                     isAnimationActive={false}
                     tooltipType="none"
                     legendType="none"
                   />
                 ))}
-                <Line dataKey="rx" name="下行" stroke="var(--color-ok)" {...RESOURCE_SERIES} />
-                <Line dataKey="tx" name="上行" stroke="var(--color-chart-1)" {...RESOURCE_SERIES} />
+                <Line dataKey="rx" name="下行" stroke={RX} {...RESOURCE_SERIES} />
+                <Line dataKey="tx" name="上行" stroke={TX} {...RESOURCE_SERIES} />
               </ComposedChart>
             </ResponsiveContainer>
           </Panel>
@@ -670,7 +705,7 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
               axis tracks the window's own maximum. */}
           <Panel title={`硬盘 · ${bytes(node.disk_total)}`}>
             <ResponsiveContainer>
-              <AreaChart data={chartRows}>
+              <AreaChart data={chartRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(chartRows)} />
                 <YAxis domain={[0, node.disk_total]} ticks={quarters(node.disk_total)} tickFormatter={axisBytes} {...VALUE_AXIS} />

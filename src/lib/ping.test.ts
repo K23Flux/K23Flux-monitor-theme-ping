@@ -1,7 +1,8 @@
 /// <reference types="node" />
 import assert from "node:assert/strict"
 import {
-  buildSlots, cardProbes, fmtLoss, fmtMs, pairOrder, parseSelection, probeStats, selectProbes, signal, splitFamily,
+  buildSlots, cardProbes, fmtLoss, fmtMs, latencySignal, lossSignal, pairOrder, parseSelection, probeStats,
+  selectProbes, splitFamily,
   type PingData,
 } from "./ping.ts"
 
@@ -34,9 +35,12 @@ assert.equal(slots.length, 10)
 assert.equal(slots.filter(Boolean).length, 2)
 console.log("slots fold their buckets")
 
-assert.deepEqual([null, 40, 60, 61, 150, 199, 250].map((v) => signal(v, "latency")), [0, 1, 1, 2, 3, 4, 5])
-assert.deepEqual([0, 1, 2, 5, 8, 20].map((v) => signal(v, "loss")), [1, 1, 2, 3, 4, 5])
-console.log("signal steps follow Glassmorphism")
+// Latency is judged against the line's own usual, loss by the figure.
+assert.deepEqual([null, 270, 337, 400, 500, 700, 1000].map((v) => latencySignal(v, 270)), [0, 1, 1, 2, 3, 4, 5])
+assert.deepEqual([null, 5, 7, 15, 30].map((v) => latencySignal(v, 5)), [0, 1, 1, 2, 3])
+assert.equal(latencySignal(80, null), 1)
+assert.deepEqual([null, 0, 1, 2, 5, 8, 20].map(lossSignal), [0, 1, 1, 2, 3, 4, 5])
+console.log("signal steps: latency against its line, loss by figure")
 
 const data: PingData = {
   probes,
@@ -54,6 +58,7 @@ assert.deepEqual([one.latest, one.avg, one.min, one.max, one.loss, one.family], 
 const six = probeStats(data, { id: 4, name: "电信-IPv6" }, since, until, 20)
 assert.deepEqual([six.timedOut, six.latest, six.avg, six.loss, six.family], [true, null, null, 0, "v6"])
 assert.equal(probeStats(data, { id: 5, name: "联通-IPv6" }, since, until, 20).loss, null)
+assert.equal(one.typical, 36)
 console.log("stats read the newest bucket and the hub's window loss")
 
 // The card shows IPv4 unless told otherwise.

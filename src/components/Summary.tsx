@@ -1,15 +1,15 @@
-import { Activity, ArrowDown, ArrowDownUp, ArrowUp, Gauge, Server } from "lucide-react"
+import { ArrowDown, ArrowDownUp, ArrowUp, Gauge, Server } from "lucide-react"
 
 import { Card } from "@/components/ui/card"
 import { speedHistory, type Node } from "@/lib/api"
 import { bytes, rate } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-function Tile({ icon: Icon, label, children }: {
-  icon: typeof Server; label: string; children: React.ReactNode
+function Tile({ icon: Icon, label, children, className }: {
+  icon: typeof Server; label: string; children: React.ReactNode; className?: string
 }) {
   return (
-    <Card className="gap-0 p-3">
+    <Card className={cn("gap-0 p-3", className)}>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Icon className="size-3.5" />
         {label}
@@ -69,33 +69,20 @@ export function Summary({ nodes, group }: { nodes: Node[]; group: string | null 
   const online = nodes.filter((n) => n.online)
   const sum = (pick: (n: Node) => number) => nodes.reduce((total, n) => total + pick(n), 0)
 
-  // The busiest node rather than the average: one machine at 95% is what matters,
-  // and a fleet of idle ones would average it away.
-  const busiest = online.reduce<Node | null>(
-    (top, n) => (n.metrics && (!top || n.metrics.cpu > top.metrics!.cpu) ? n : top),
-    null,
-  )
-  const cpu = busiest?.metrics?.cpu ?? 0
   // The same push produced `nodes` and this sample, so the figure above the line
   // is that line's last point.
   const history = speedHistory.get(group) ?? []
   const now = history.at(-1) ?? { rx: 0, tx: 0 }
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Tile icon={Server} label="节点">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      {/* Three tiles: on a phone the first takes the whole row so the pair below it stays level. */}
+      <Tile icon={Server} label="节点" className="col-span-2 lg:col-span-1">
         <div className="tnum mt-1 text-xl font-semibold">
           {online.length} / {nodes.length}
         </div>
         <div className="mt-auto pt-1 text-xs text-muted-foreground">
           {nodes.length - online.length > 0 ? `${nodes.length - online.length} 个离线` : "全部在线"}
-        </div>
-      </Tile>
-
-      <Tile icon={Activity} label="最忙节点">
-        <div className="tnum mt-1 text-xl font-semibold">{busiest ? `${cpu.toFixed(1)}%` : "—"}</div>
-        <div className={cn("mt-auto truncate pt-1 text-xs", cpu >= 85 ? "font-medium text-foreground" : "text-muted-foreground")}>
-          {busiest ? busiest.name : "无在线节点"}
         </div>
       </Tile>
 

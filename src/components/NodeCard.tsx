@@ -161,6 +161,9 @@ function Expiry({ node }: { node: Node }) {
 
 export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => void; ping?: PingOptions | null }) {
   const m = node.metrics
+  // A machine that has reported and stopped gets a red border, so an outage shows
+  // from across the page. One that never connected is not an outage.
+  const down = !node.online && deployed(node)
 
   return (
     <Card
@@ -169,7 +172,10 @@ export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => voi
       // OS line below does not wrap, so on a phone the card would grow past its
       // column and scroll the page sideways. The truncate inside only takes effect
       // once the card is allowed to be narrower.
-      className="min-w-0 cursor-pointer gap-0 p-4 transition-colors hover:border-ring"
+      className={cn(
+        "min-w-0 cursor-pointer gap-0 p-4 transition-colors hover:border-ring",
+        down && "border-[color-mix(in_oklab,var(--signal-5)_60%,transparent)]",
+      )}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onOpen())}
@@ -202,12 +208,13 @@ export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => voi
       {deployed(node) ? (
         <>
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
-            {/* The core count belongs beside the word CPU: it is what the
-                percentage and the load averages are both measured against. */}
+            {/* The core count sits under the bar like the other meters' raw
+                numbers. No load averages: in a container they are the host
+                machine's, not its own. */}
             <Meter
-              label={`CPU ${node.cpu_cores} 核`}
+              label="CPU"
               pct={m ? m.cpu : null}
-              foot={m ? m.load.map((n) => n.toFixed(2)).join(" ") : "—"}
+              foot={`${node.cpu_cores} 核`}
             />
             <Meter
               label="内存"
@@ -227,7 +234,8 @@ export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => voi
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-4 text-xs">
+          <div className="mt-4 grid grid-cols-[auto_1fr_1fr] items-center gap-x-4 gap-y-2 border-t pt-4 text-xs">
+            <span className="text-[11px] text-muted-foreground" title="此刻的网速">实时</span>
             <span className="tnum inline-flex items-center gap-1.5">
               <ArrowDown className="size-3 text-muted-foreground" />
               {m ? rate(m.net_rx) : "—"}
@@ -236,6 +244,7 @@ export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => voi
               <ArrowUp className="size-3 text-muted-foreground" />
               {m ? rate(m.net_tx) : "—"}
             </span>
+            <span className="text-[11px] text-muted-foreground" title="累计总流量">累计</span>
             <span className="tnum inline-flex items-center gap-1.5 text-muted-foreground">
               <ArrowDown className="size-3" />
               {bytes(node.total_rx)}
