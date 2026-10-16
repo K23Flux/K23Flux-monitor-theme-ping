@@ -1,10 +1,10 @@
 {
-  "name": "默认主题",
-  "short": "default",
-  "description": "内置状态面板，黑白配色",
-  "version": "1.4.1",
-  "author": "stqfdyr",
-  "url": "https://github.com/monitor-probe/monitor-theme-default",
+  "name": "默认主题 · 延迟",
+  "short": "default-ping",
+  "description": "默认主题加上延迟与丢包率：首页显示 IPv4，详情页列出全部 IPv4 / IPv6 线路",
+  "version": "1.0.0",
+  "author": "K23Flux",
+  "url": "https://github.com/K23Flux/K23Flux-monitor-theme-ping",
   "config": [
     {
       "key": "show_summary",
@@ -12,6 +12,37 @@
       "label": "显示汇总",
       "default": true,
       "help": "节点列表上方的节点数、最忙节点、流量和网速四格"
+    },
+    {
+      "type": "title",
+      "label": "延迟"
+    },
+    {
+      "key": "ping_enabled",
+      "type": "boolean",
+      "label": "卡片显示延迟",
+      "default": true,
+      "help": "在每张节点卡片底部显示延迟和丢包率，每个测试一行（左边延迟，右边丢包，各带 20 格色块）"
+    },
+    {
+      "key": "ping_tasks",
+      "type": "text",
+      "label": "卡片显示的延迟测试",
+      "default": "",
+      "help": "每行一个，填后台「延迟测试」的名称（如 电信）或 ID，按填写顺序显示；留空显示全部 IPv4 测试（名称不以 -IPv6 / IPv6 / v6 结尾的）。详情页始终列出全部测试。"
+    },
+    {
+      "key": "ping_hours",
+      "type": "select",
+      "label": "卡片统计窗口",
+      "default": "1",
+      "options": [
+        { "value": "1", "label": "1 小时" },
+        { "value": "3", "label": "3 小时" },
+        { "value": "6", "label": "6 小时" },
+        { "value": "24", "label": "24 小时" }
+      ],
+      "help": "卡片上的丢包率和色块覆盖的时间；延迟数字是最新一次采样"
     }
   ]
 }

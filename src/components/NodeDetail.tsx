@@ -7,7 +7,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Country, Status } from "@/components/NodeCard"
+import { PingTable } from "@/components/PingTable"
 import { api, type Node } from "@/lib/api"
+import { splitFamily } from "@/lib/ping"
 import {
   axisBytes, axisTop, bytes, clockFor, cycle, despike, quarters, cpuName, FOREVER, money, osName, rate, RATE_FLOOR,
   rateAxis, tickClock, timeTicks, windows, withGaps,
@@ -84,20 +86,9 @@ const TOOLTIP = {
 // and a rate axis of 1 KB/s to 100 MB/s its 10 MB/s label and two gridlines.
 const VALUE_AXIS = { ...AXIS, width: 68, interval: 0 }
 
-// The palette is greyscale, so lightness alone is exhausted after two or three
-// series and the dash pattern carries the rest.
-// ponytail: the dash period is shorter than the jitter once every ping in the
-// window is on the chart, so at the day range a dotted line and a dashed one both
-// read as texture and only lightness separates them. A muted colour palette was
-// built and measured but not adopted; restoring it means five oklch pairs and
-// dropping `dash`.
-const PALETTE = [
-  { stroke: "var(--color-chart-1)", dash: undefined },
-  { stroke: "var(--color-chart-3)", dash: "6 3" },
-  { stroke: "var(--color-chart-2)", dash: "2 3" },
-  { stroke: "var(--color-chart-4)", dash: "10 4 2 4" },
-  { stroke: "var(--color-chart-5)", dash: "1 4" },
-]
+// The latency chart's lines. Six greys cannot be told apart, so each line is
+// coloured by carrier, and the IPv6 twin takes its IPv4 line's colour dashed.
+const CARRIERS = ["#3b82f6", "#f59e0b", "#10b981", "#a855f7", "#ef4444", "#06b6d4"]
 
 const TABS = [
   { key: "resources", label: "资源" },
@@ -300,8 +291,15 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
     () => pingSeries.filter((s) => !hiddenProbes.includes(s.id)),
     [pingSeries, hiddenProbes],
   )
-  // Keyed on the full list, so a line keeps its shade when others are hidden.
-  const style = (id: number) => PALETTE[pingSeries.findIndex((p) => p.id === id) % PALETTE.length]
+  // Keyed on the full list, so a line keeps its colour when others are hidden.
+  const bases = useMemo(
+    () => [...new Set(pingSeries.map((s) => splitFamily(s.name).base))],
+    [pingSeries],
+  )
+  const style = (id: number) => {
+    const { base, family } = splitFamily(pingSeries.find((p) => p.id === id)?.name ?? "")
+    return { stroke: CARRIERS[Math.max(0, bases.indexOf(base)) % CARRIERS.length], dash: family === "v6" ? "5 3" : undefined }
+  }
 
   // The hub stamps every sample with its bucket rather than the second the probe
   // finished, so probes reporting at the bucket's rate share rows instead of each
@@ -469,10 +467,15 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
         pingSeries.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">这段时间没有延迟数据</p>
         ) : (
-          // An explicit pixel height on the column, so the chart can be `flex-1`
-          // within it while the legend takes what it needs: four probes are one row
-          // of chips on a desktop and two on a phone, so any fixed reservation is
-          // wrong on one of them.
+          <>
+          <PingTable
+            series={pingSeries}
+            hours={hours}
+            styleOf={style}
+            hidden={hiddenProbes}
+            onToggle={(id) => setHiddenProbes((h) => (h.includes(id) ? h.filter((x) => x !== id) : [...h, id]))}
+          />
+          {/* The chart fills what is left of the screen below the table. */}
           <div
             // `+ scrollY`, because getBoundingClientRect is measured from the
             // viewport and this callback runs on every render; a live node
@@ -571,52 +574,8 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
                 </ResponsiveContainer>
               )}
             </div>
-
-            {/* Under the chart: what it covers is picked at the top, what is
-                drawn in it is picked here. Recharts paints the brush into the
-                same SVG as the axis, so this is as close beneath as HTML
-                sits. */}
-            {(pingSeries.length > 1 || pingSeries.some((s) => s.loss > 0)) && (
-              <div className="flex flex-wrap items-center justify-center gap-1.5">
-                {pingSeries.map((s) => {
-                  const shown = !hiddenProbes.includes(s.id)
-                  return (
-                    <button
-                      key={s.id}
-                      aria-pressed={shown}
-                      onClick={() =>
-                        setHiddenProbes((h) => (shown ? [...h, s.id] : h.filter((id) => id !== s.id)))
-                      }
-                      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-opacity ${
-                        shown ? "" : "opacity-40"
-                      }`}
-                    >
-                      {/* The swatch carries the same shade and dash as the line. */}
-                      <svg width="14" height="6" className="shrink-0" aria-hidden>
-                        <line
-                          x1="0"
-                          y1="3"
-                          x2="14"
-                          y2="3"
-                          stroke={style(s.id).stroke}
-                          strokeDasharray={style(s.id).dash}
-                          strokeWidth="2"
-                        />
-                      </svg>
-                      {s.name}
-                      {/* The line is only what answered, so a probe dropping
-                          half its packets draws like a healthy one. */}
-                      {s.loss > 0 && (
-                        <span className="tnum opacity-60">
-                          丢 {s.loss < 1 ? "<1" : Math.round(s.loss)}%
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
           </div>
+          </>
         )
       ) : data.metrics.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">这段时间没有历史数据</p>

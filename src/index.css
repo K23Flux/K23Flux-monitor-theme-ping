@@ -43,6 +43,14 @@
      perceives. */
   --online: oklch(0.6 0.16 150);
   --offline: oklch(0.52 0 0);
+  /* Latency and loss, best to worst -- Glassmorphism's scale. The one place
+     besides the status dot that takes colour: a strip of greys cannot tell slow
+     from lost at a glance. */
+  --signal-1: #059669;
+  --signal-2: #4ade80;
+  --signal-3: #a3e635;
+  --signal-4: #facc15;
+  --signal-5: #f43f5e;
 }
 
 /* `color-scheme` draws the browser's own controls -- the checkbox,
@@ -76,6 +84,11 @@
      the green. */
   --online: oklch(0.72 0.17 150);
   --offline: oklch(0.55 0 0);
+  --signal-1: #10b981;
+  --signal-2: #4ade80;
+  --signal-3: #a3e635;
+  --signal-4: #fde047;
+  --signal-5: #fb7185;
 }
 
 @theme inline {

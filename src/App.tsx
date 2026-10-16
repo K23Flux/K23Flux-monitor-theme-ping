@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState, useSyncExternalStore 
 import { Moon, Sun, Wrench } from "lucide-react"
 
 import { NodeCard } from "@/components/NodeCard"
+import type { PingOptions } from "@/components/PingPanel"
 import { Summary } from "@/components/Summary"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -215,6 +216,7 @@ export default function App() {
             nodes={sorted}
             group={group}
             summary={config.show_summary === true}
+            ping={pingOptions(config)}
             onGroup={setGroup}
             onOpen={go}
           />
@@ -224,14 +226,21 @@ export default function App() {
   )
 }
 
+function pingOptions(v: Record<string, unknown>): PingOptions | null {
+  if (v.ping_enabled === false) return null
+  return { tasks: String(v.ping_tasks ?? ""), hours: Number(v.ping_hours) || 1 }
+}
+
 // Group tabs appear only once the operator has grouped something, so a hub
 // without groups keeps the page it always had. The summary follows the tab.
-function NodeList({ nodes, group, summary, onGroup, onOpen }: {
+function NodeList({ nodes, group, summary, ping, onGroup, onOpen }: {
   nodes: Node[]
   /** null is every node, "" the ungrouped. */
   group: string | null
   /** The operator's `show_summary` setting. */
   summary: boolean
+  /** The latency settings, null when the cards show none. */
+  ping: PingOptions | null
   onGroup: (group: string | null) => void
   onOpen: (id: number) => void
 }) {
@@ -277,7 +286,7 @@ function NodeList({ nodes, group, summary, onGroup, onOpen }: {
       ) : (
         <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {shown.map((n) => (
-            <NodeCard key={n.id} node={n} onOpen={() => onOpen(n.id)} />
+            <NodeCard key={n.id} node={n} ping={ping} onOpen={() => onOpen(n.id)} />
           ))}
         </div>
       )}

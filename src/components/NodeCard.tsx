@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Meter } from "@/components/Meter"
+import { PingPanel, type PingOptions } from "@/components/PingPanel"
 import type { Node } from "@/lib/api"
 import { bytes, daysUntil, FOREVER, osName, pair, percent, rate, sinceSeen, uptime } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -158,7 +159,7 @@ function Expiry({ node }: { node: Node }) {
   )
 }
 
-export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
+export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => void; ping?: PingOptions | null }) {
   const m = node.metrics
 
   return (
@@ -244,6 +245,8 @@ export function NodeCard({ node, onOpen }: { node: Node; onOpen: () => void }) {
               {bytes(node.total_tx)}
             </span>
           </div>
+
+          {ping && <PingPanel node={node} options={ping} />}
         </>
       ) : (
         /* Never connected: nothing to plot, so the card stays short rather than
