@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card"
 import { Meter } from "@/components/Meter"
 import { PingPanel, type PingOptions } from "@/components/PingPanel"
 import type { Node } from "@/lib/api"
-import { bytes, daysUntil, FOREVER, osName, pair, percent, rate, sinceSeen, uptime } from "@/lib/format"
+import { bytes, daysUntil, FOREVER, osName, pair, percent, rate, sinceSeen, uptime, uptimeShort } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 // Emitted as files and fetched on first use, so a page carries only the flags its
@@ -69,12 +69,13 @@ function deployed(node: Node) {
  * has been absent -- the first question asked of an offline node. Both are
  * durations, so the badge keeps its shape either way.
  */
-export function Status({ node }: { node: Node }) {
+export function Status({ node, short = false }: { node: Node; short?: boolean }) {
   const down = sinceSeen(node)
+  const span = short ? uptimeShort : uptime
   const label = node.online
-    ? `在线 ${node.metrics ? uptime(node.metrics.uptime) : ""}`
+    ? `在线 ${node.metrics ? span(node.metrics.uptime) : ""}`
     : deployed(node)
-      ? `离线 ${down >= 60 ? uptime(down) : ""}`
+      ? `离线 ${down >= 60 ? span(down) : ""}`
       : "未接入"
   return (
     // Muted once it stops reporting: the figures on the page are genuine, merely
@@ -197,7 +198,7 @@ export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => voi
         </div>
         {/* State right, identity left, one line each. */}
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <Status node={node} />
+          <Status node={node} short />
           <Expiry node={node} />
         </div>
       </div>
@@ -234,24 +235,16 @@ export function NodeCard({ node, onOpen, ping }: { node: Node; onOpen: () => voi
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-[auto_1fr_1fr] items-center gap-x-4 gap-y-2 border-t pt-4 text-xs">
-            <span className="text-[11px] text-muted-foreground" title="此刻的网速">实时</span>
-            <span className="tnum inline-flex items-center gap-1.5">
+          {/* Live throughput, one quiet line aligned under the meters' two
+              columns. The month's usage is on the 流量 bar above. */}
+          <div className="tnum mt-3 grid grid-cols-2 gap-x-4 text-xs" title="此刻的网速">
+            <span className="inline-flex items-center gap-1.5">
               <ArrowDown className="size-3 text-muted-foreground" />
               {m ? rate(m.net_rx) : "—"}
             </span>
-            <span className="tnum inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5">
               <ArrowUp className="size-3 text-muted-foreground" />
               {m ? rate(m.net_tx) : "—"}
-            </span>
-            <span className="text-[11px] text-muted-foreground" title="累计总流量">累计</span>
-            <span className="tnum inline-flex items-center gap-1.5 text-muted-foreground">
-              <ArrowDown className="size-3" />
-              {bytes(node.total_rx)}
-            </span>
-            <span className="tnum inline-flex items-center gap-1.5 text-muted-foreground">
-              <ArrowUp className="size-3" />
-              {bytes(node.total_tx)}
             </span>
           </div>
 

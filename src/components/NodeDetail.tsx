@@ -99,14 +99,14 @@ const TABS = [
   { key: "latency", label: "网络延迟" },
 ] as const
 
-function Panel({ title, legend, children }: { title: string; legend?: React.ReactNode; children: React.ReactNode }) {
+function Panel({ title, legend, children, short = false }: { title: string; legend?: React.ReactNode; children: React.ReactNode; short?: boolean }) {
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <h4 className="text-xs font-medium text-muted-foreground">{title}</h4>
         {legend}
       </div>
-      <div className="h-40 w-full text-muted-foreground">{children}</div>
+      <div className={`${short ? "h-20" : "h-40"} w-full text-muted-foreground`}>{children}</div>
     </div>
   )
 }
@@ -424,12 +424,12 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
           {/* The disk it is filling, for the same reason as memory: a node
               using 2.7% of its disk draws along the top of the panel when the
               axis tracks the window's own maximum. */}
-          <Panel title={`硬盘 · ${bytes(node.disk_total)}`}>
+          <Panel title={`硬盘 · ${bytes(node.disk_total)}`} short>
             <ResponsiveContainer>
               <AreaChart data={chartRows} margin={CHART_MARGIN}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis {...timeAxis(chartRows)} />
-                <YAxis domain={[0, node.disk_total]} ticks={quarters(node.disk_total)} tickFormatter={axisBytes} {...VALUE_AXIS} />
+                <YAxis domain={[0, node.disk_total]} ticks={[0, node.disk_total / 2, node.disk_total]} tickFormatter={axisBytes} {...VALUE_AXIS} />
                 <Tooltip {...TOOLTIP} formatter={(v) => bytes(Number(v))} />
                 <Area dataKey="disk_used" name="硬盘" stroke="var(--color-chart-2)" fill="var(--color-chart-2)" fillOpacity={0.15} {...RESOURCE_SERIES} />
               </AreaChart>

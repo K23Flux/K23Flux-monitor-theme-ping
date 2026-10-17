@@ -185,7 +185,7 @@ export function latencySignal(ms: number | null, typical: number | null): number
 
 /** A figure's ink: the step's colour, pulled toward the text so it stays readable. */
 export const signalText = (step: number) =>
-  step ? `color-mix(in oklab, var(--signal-${step}) 65%, var(--foreground))` : "var(--muted-foreground)"
+  step === 0 ? "var(--muted-foreground)" : step <= 2 ? "var(--foreground)" : `color-mix(in oklab, var(--signal-${step}) 65%, var(--foreground))`
 
 export const fmtMs = (ms: number) => (ms < 10 ? ms.toFixed(1) : Math.round(ms).toString())
 export const fmtLoss = (pct: number) => (pct === 0 ? "0" : pct < 0.1 ? "<0.1" : pct < 10 ? pct.toFixed(1) : Math.round(pct).toString())

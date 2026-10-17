@@ -17,6 +17,16 @@ function blockTitle(slot: Slot, metric: "latency" | "loss") {
   return `${clock(slot.ts)} · ${slot.latency === null ? "超时" : `${fmtMs(slot.latency)} ms`}`
 }
 
+/**
+ * Colour is kept for trouble: the two healthy steps sit as a faint green over
+ * the muted track, so a glance down the page lands on the few blocks that are
+ * yellow or red rather than on hundreds of green ones.
+ */
+export const blockFill = (step: number) =>
+  step === 0 ? "var(--muted)"
+    : step <= 2 ? `color-mix(in oklab, var(--signal-1) ${step === 1 ? 30 : 45}%, var(--muted))`
+      : `var(--signal-${step})`
+
 /** A row of blocks, one per slot of the window, coloured by its step. */
 export function Blocks({ slots, metric, typical, className }: {
   slots: Slot[]; metric: "latency" | "loss"; typical: number | null; className?: string
@@ -35,7 +45,7 @@ export function Blocks({ slots, metric, typical, className }: {
             key={i}
             title={blockTitle(slot, metric)}
             className="rounded-[2px]"
-            style={{ background: step ? `var(--signal-${step})` : "var(--muted)" }}
+            style={{ background: blockFill(step) }}
           />
         )
       })}
@@ -86,25 +96,30 @@ export function PingPanel({ node, options }: { node: Node; options: PingOptions 
   if (!probes.length) return null
 
   return (
-    <div className="mt-4 space-y-2.5 border-t pt-4 text-[11px] leading-tight">
-      {probes.map((p) => (
-        <div key={p.id} className="grid grid-cols-2 gap-3.5" title={p.name}>
-          <div className="min-w-0">
-            <div className="mb-1.5 flex items-baseline justify-between gap-1.5">
-              <span className="truncate text-muted-foreground">{p.name}</span>
-              <LatencyValue probe={p} className="text-xs" />
+    <div className="mt-4 border-t pt-3 text-[11px] leading-tight">
+      <div className="mb-2 grid grid-cols-2 gap-3.5 text-[10px] text-muted-foreground/80">
+        <span>延迟</span>
+        <span title={`近 ${hours} 小时丢包率`}>丢包 · {hours} 小时</span>
+      </div>
+      <div className="space-y-2.5">
+        {probes.map((p) => (
+          <div key={p.id} className="grid grid-cols-2 gap-3.5" title={p.name}>
+            <div className="min-w-0">
+              <div className="mb-1.5 flex items-baseline justify-between gap-1.5">
+                <span className="truncate text-muted-foreground">{p.name}</span>
+                <LatencyValue probe={p} className="text-xs" />
+              </div>
+              <Blocks slots={p.slots} metric="latency" typical={p.typical} className="h-[9px]" />
             </div>
-            <Blocks slots={p.slots} metric="latency" typical={p.typical} className="h-[9px]" />
-          </div>
-          <div className="min-w-0">
-            <div className="mb-1.5 flex items-baseline justify-between gap-1.5">
-              <span className="text-muted-foreground" title={`近 ${hours} 小时丢包率`}>丢包</span>
-              <LossValue probe={p} className="text-xs" />
+            <div className="min-w-0">
+              <div className="mb-1.5 flex items-baseline justify-end gap-1.5">
+                <LossValue probe={p} className="text-xs" />
+              </div>
+              <Blocks slots={p.slots} metric="loss" typical={null} className="h-[9px]" />
             </div>
-            <Blocks slots={p.slots} metric="loss" typical={null} className="h-[9px]" />
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

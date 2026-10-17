@@ -63,6 +63,15 @@ export function uptime(seconds: number): string {
   return d > 0 ? `${d} 天 ${h} 小时` : h > 0 ? `${h} 小时 ${m} 分` : `${m} 分`
 }
 
+/** Uptime in its largest unit only, for the card badge where width is scarce. */
+export function uptimeShort(seconds: number): string {
+  if (!seconds) return "—"
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor(seconds / 60)
+  return d > 0 ? `${d} 天` : h > 0 ? `${h} 小时` : `${m} 分`
+}
+
 /** Whole days until a date, negative once it has passed. */
 export function daysUntil(date?: string | null): number | null {
   if (!date) return null
