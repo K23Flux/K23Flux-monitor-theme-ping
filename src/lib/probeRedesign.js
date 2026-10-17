@@ -4,6 +4,8 @@
   原文件里的常量和数据（NOW、START、TOT、LINES、CHART_LINES、DATA）改成 mount() 的参数，
   document.getElementById 改成在 root 里查找，window 上的监听在卸载时移除；
   选中时段虚线框的填充色 #ffffff 改成 var(--sel-fill)（暗色下仍是 #ffffff，亮色下换成深色才看得见）；
+  纵轴范围、刻度和「线路质量」柱高改成按数据自适应（参考实现写死 130–230 ms / 140–230 ms，
+  几十毫秒的线路全被压在下限，曲线成了一条直线，1.1.2 改）；
   除此之外和参考实现逐行一致，改外观和交互请先改参考文件。
   数据层在 probeData.ts。
 */
@@ -28,6 +30,19 @@ function agg(i, a, b) {
     s += v; n++; if (v > mx) mx = v; if (v < mn) mn = v; l += DATA[i].loss[k] || 0;
   }
   return n ? { a: Math.round(s / n), mx, mn, l: Math.round(l / n * 1000) / 10 } : null;
+}
+/* 纵轴 / 柱高按数据自适应（参考实现写死 130–230 ms，低于 130 的线路被压成一条直线） */
+const niceStep = raw => { const p = 10 ** Math.floor(Math.log10(raw)), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
+function laneScale(b) {
+  if (!b.length) return { lo: 0, hi: 1, ticks: [] };
+  const mins = b.map(y => y.mn), maxs = b.map(y => y.mx).sort((p, q) => p - q);
+  let lo = Math.min(...mins), hi = maxs[Math.floor(maxs.length * .95)] ?? lo;   // 上限取 P95，偶发尖峰顶到格子顶部
+  if (hi - lo < 20) { const c = (hi + lo) / 2; lo = c - 10; hi = c + 10; }
+  const st = niceStep((hi - lo) / 3);
+  lo = Math.max(0, Math.floor(lo / st) * st); hi = Math.ceil(hi / st) * st;
+  if (hi <= lo) hi = lo + st;
+  const ticks = []; for (let g = lo + st; g <= hi + 1e-9; g += st) ticks.push(Math.round(g * 100) / 100);
+  return { lo, hi, ticks };
 }
 const lossColor = v => v === 0 ? 'var(--l0)' : v < 1 ? 'var(--l1)' : v < 5 ? 'var(--l2)' : 'var(--l3)';
 
@@ -56,9 +71,11 @@ function buildQ() {
   }));
   qrows.innerHTML = cells.map((row, i) => {
     const s = agg(i, t0, NOW);
+    // 柱高：和这一行自己的最低 / 最高比（差不到 20 ms 按 20 ms 算，免得一点抖动就满格）
+    const av = row.filter(c => c.s).map(c => c.s.a), bl = av.length ? Math.min(...av) : 0, bs = Math.max(20, (av.length ? Math.max(...av) : 0) - bl);
     return `<div class="qr"><div><div class="qname">${LINES[i]}</div><div class="qstat">${s ? s.a + ' ms · ' + s.l + '%' : '无数据'}</div></div>
       <div class="bars" style="grid-template-columns:repeat(${g.n},minmax(0,1fr))">${row.map((c, k) => c.s
-        ? `<div class="bar" data-i="${i}" data-k="${k}" style="height:${Math.round(30 + Math.min(1, Math.max(0, (c.s.a - 140) / 90)) * 70)}%;background:${lossColor(c.s.l)}"></div>`
+        ? `<div class="bar" data-i="${i}" data-k="${k}" style="height:${Math.round(30 + Math.min(1, Math.max(0, (c.s.a - bl) / bs)) * 70)}%;background:${lossColor(c.s.l)}"></div>`
         : `<div class="bar empty" data-i="${i}" data-k="${k}"></div>`).join('')}</div></div>`;
   }).join('');
   qt.innerHTML = [0, .25, .5, .75, 1].map(p => {
@@ -141,8 +158,8 @@ function drawC() {
   layout();
   const mob = isMobile();
   [...lb.children].forEach((b, j) => b.classList.toggle('on', !sel && view[1] === NOW && view[1] - view[0] === LR[j][0] * 60 * M));
-  const all = CHART_LINES.map(buckets), lo = 130, hi = 230;
-  const Y = (v, y) => y + LH - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * LH;
+  const all = CHART_LINES.map(buckets), sc = all.map(laneScale);
+  const Y = (v, y, j) => y + LH - (Math.min(sc[j].hi, Math.max(sc[j].lo, v)) - sc[j].lo) / (sc[j].hi - sc[j].lo) * LH;
   let h = '';
   if (sel) {
     const c = cells[sel.i][sel.k], x1 = Math.max(L, X(c.t)), x2 = Math.min(W - RR, X(c.e));
@@ -160,11 +177,11 @@ function drawC() {
             <text x="0" y="${y0 + 32}" font-size="11" fill="var(--text-2)">均值 ${av} ms</text>
             <text x="0" y="${y0 + 48}" font-size="11" fill="var(--text-2)">P95 ${p95} ms</text>`;
     }
-    [150, 180, 210].forEach(g => h += `<line x1="${L}" x2="${W - RR}" y1="${Y(g, y0)}" y2="${Y(g, y0)}" stroke="var(--border)" stroke-dasharray="3 4"/>
-      <text x="${W - RR}" y="${Y(g, y0) - 3}" text-anchor="end" font-size="11" fill="var(--text-3)">${g}</text>`);
-    const top = b.map(y => `${X(y.t).toFixed(1)},${Y(y.mx, y0).toFixed(1)}`), bot = b.map(y => `${X(y.t).toFixed(1)},${Y(y.mn, y0).toFixed(1)}`).reverse();
+    sc[j].ticks.forEach(g => h += `<line x1="${L}" x2="${W - RR}" y1="${Y(g, y0, j)}" y2="${Y(g, y0, j)}" stroke="var(--border)" stroke-dasharray="3 4"/>
+      <text x="${W - RR}" y="${Y(g, y0, j) - 3}" text-anchor="end" font-size="11" fill="var(--text-3)">${g}</text>`);
+    const top = b.map(y => `${X(y.t).toFixed(1)},${Y(y.mx, y0, j).toFixed(1)}`), bot = b.map(y => `${X(y.t).toFixed(1)},${Y(y.mn, y0, j).toFixed(1)}`).reverse();
     h += `<polygon points="${top.concat(bot).join(' ')}" fill="${BLUE}" fill-opacity=".18"/>
-          <polyline points="${b.map(y => `${X(y.t).toFixed(1)},${Y(y.a, y0).toFixed(1)}`).join(' ')}" fill="none" stroke="${BLUE}" stroke-width="1.6" stroke-linejoin="round"/>`;
+          <polyline points="${b.map(y => `${X(y.t).toFixed(1)},${Y(y.a, y0, j).toFixed(1)}`).join(' ')}" fill="none" stroke="${BLUE}" stroke-width="1.6" stroke-linejoin="round"/>`;
   });
   const sp = view[1] - view[0];
   const st = [[2 * 60 * M, 15 * M], [7 * 60 * M, 60 * M], [30 * 60 * M, 4 * 60 * M], [4 * 1440 * M, 1440 * M], [Infinity, 2 * 1440 * M]].find(z => sp <= z[0])[1] * (mob ? 2 : 1);
@@ -176,7 +193,7 @@ function drawC() {
   if (hx != null && !drag && all[0].length) {
     h += `<line x1="${hx}" x2="${hx}" y1="4" y2="${H - 28}" stroke="var(--text-2)" stroke-width=".8"/>`;
     const t = T(hx), vs = all.map(b => b.reduce((p, y) => Math.abs(y.t - t) < Math.abs(p.t - t) ? y : p, b[0]));
-    vs.forEach((y, j) => { if (y) h += `<circle cx="${X(y.t)}" cy="${Y(y.a, LANE_Y[j])}" r="3.5" fill="${BLUE}" stroke="var(--card)" stroke-width="1.5"/>`; });
+    vs.forEach((y, j) => { if (y) h += `<circle cx="${X(y.t)}" cy="${Y(y.a, LANE_Y[j], j)}" r="3.5" fill="${BLUE}" stroke="var(--card)" stroke-width="1.5"/>`; });
     const y0 = vs[0], a = y0.t - y0.st * M / 2;
     rd.innerHTML = `<b>${y0.st > 1 ? rangeTxt(a, a + y0.st * M) : md(a) + ' ' + hm(a)}</b>　` +
       vs.map((y, j) => y ? `${LINES[CHART_LINES[j]]} ${y.a} ms <span style="color:var(--text-3)">(${y.mn}–${y.mx})</span>` : '').join('　');
