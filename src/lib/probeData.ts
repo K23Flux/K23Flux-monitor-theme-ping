@@ -104,9 +104,8 @@ export async function loadRedesignData(nodeId: number, historyDays: number): Pro
   return {
     NOW, START, TOT,
     LINES: order.map((p) => p.name),
-    // 下面的延迟曲线显示哪几条（下标指向 LINES）。和参考实现一样画两条：
-    // 排在第一的线路和它的 IPv6（pairOrder 让 IPv6 紧跟在同运营商 IPv4 后面）
-    CHART_LINES: order.slice(0, 2).map((_, i) => i),
+    // 下面的延迟曲线显示哪几条（下标指向 LINES）：全部线路各一行
+    CHART_LINES: order.map((_, i) => i),
     DATA: order.map((p) => minuteSeries(tiers, p.id, START, TOT)),
   }
 }

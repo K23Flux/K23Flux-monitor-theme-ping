@@ -2,7 +2,7 @@
   "name": "默认主题 · 延迟",
   "short": "default-ping",
   "description": "默认主题加上延迟与丢包率：首页显示 IPv4，详情页列出全部 IPv4 / IPv6 线路",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "K23Flux",
   "url": "https://github.com/K23Flux/K23Flux-monitor-theme-ping",
   "config": [
