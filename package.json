@@ -1,13 +1,13 @@
 {
   "name": "monitor-theme-ping",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node src/lib/format.test.ts && node src/lib/api.test.ts && node src/lib/ping.test.ts",
+    "test": "node src/lib/format.test.ts && node src/lib/api.test.ts && node src/lib/ping.test.ts && node src/lib/probeData.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

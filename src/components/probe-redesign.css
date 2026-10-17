@@ -1,0 +1,78 @@
+/*
+  probe-redesign-reference.html 的样式，原样搬过来，限定在 .pr 里面，免得影响页面其他部分。
+  暗色主题用参考文件的颜色；亮色主题换成同一套变量的浅色值（参考文件只有暗色）。
+  参考文件里 body / .wrap 的字体和外边距由页面本身提供，这里只设字体大小和行高。
+*/
+.pr {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --text: #171717;
+  --text-2: #525252;
+  --text-3: #8a8a8a;
+  --accent-bg: #eff6ff;
+  --accent-text: #1d4ed8;
+  --accent-border: #93c5fd;
+  --hover: #f5f5f5;
+  --sel-fill: #000000;
+  --blue: #3b82f6;
+  --l0: #1D9E75; --l1: #97C459; --l2: #EF9F27; --l3: #E24B4A;
+  color: var(--text);
+  font-size: 13px; line-height: 1.5;
+}
+.dark .pr {
+  --bg: #0a0a0a;
+  --card: #141414;
+  --border: #262626;
+  --border-strong: #3a3a3a;
+  --text: #e5e5e5;
+  --text-2: #a3a3a3;
+  --text-3: #6b6b6b;
+  --accent-bg: #172554;
+  --accent-text: #93c5fd;
+  --accent-border: #1d4ed8;
+  --hover: #1c1c1c;
+  --sel-fill: #ffffff;
+}
+.pr * { box-sizing: border-box; }
+.pr .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 14px 16px 12px; margin-bottom: 12px; user-select: none; }
+.pr .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pr .title { font-weight: 500; font-size: 14px; }
+.pr .btns { display: flex; gap: 6px; }
+.pr .rb { font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 8px; cursor: pointer;
+      background: transparent; color: var(--text-2); border: 1px solid var(--border-strong); }
+.pr .rb:hover { background: var(--hover); }
+.pr .rb.on { background: var(--accent-bg); color: var(--accent-text); border-color: var(--accent-border); }
+.pr .info { color: var(--text-2); font-size: 12px; padding: 8px 0 2px; min-height: 26px; }
+.pr .info b { font-weight: 500; color: var(--text); }
+.pr .info a { color: var(--accent-text); text-decoration: none; }
+
+/* 线路质量 */
+.pr .qr { display: grid; grid-template-columns: 118px minmax(0, 1fr); align-items: end; padding: 9px 0; }
+.pr .qr + .qr { border-top: 1px solid var(--border); }
+.pr .qname { color: var(--text); }
+.pr .qstat { color: var(--text-3); font-size: 11px; }
+.pr .bars { display: grid; gap: 2px; height: 28px; align-items: end; cursor: pointer; }
+.pr .bar { border-radius: 2px; transition: opacity .12s; }
+.pr .bar.empty { background: var(--border) !important; height: 30% !important; }
+.pr .bar.sel { outline: 1px solid var(--text); outline-offset: 1px; }
+.pr .ticks-row { display: grid; grid-template-columns: 118px minmax(0, 1fr); margin-top: 2px; }
+.pr .ticks { position: relative; height: 16px; color: var(--text-3); font-size: 11px; }
+.pr .ticks span { position: absolute; white-space: nowrap; }
+.pr .legend { text-align: right; color: var(--text-3); font-size: 11px; margin-top: 6px; }
+.pr .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 3px 0 8px; vertical-align: -1px; }
+
+/* 延迟曲线 */
+.pr #sv { width: 100%; display: block; margin-top: 6px; cursor: crosshair; touch-action: pan-y; }
+
+/* 手机：线路名放到柱子上方 */
+@media (max-width: 599px) {
+  .pr .card { padding: 12px 12px 10px; }
+  .pr .qr { grid-template-columns: minmax(0, 1fr); padding: 6px 0 8px; }
+  .pr .qr > div:first-child { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+  .pr .bars { height: 24px; }
+  .pr .ticks-row { grid-template-columns: minmax(0, 1fr); }
+  .pr .ticks-row > span { display: none; }
+}
