@@ -62,24 +62,25 @@ export function Summary({ nodes, group }: { nodes: Node[]; group: string | null 
   const history = speedHistory.get(group) ?? []
   const now = history.at(-1) ?? { rx: 0, tx: 0 }
 
+  // Four cells on the same grid as the cards below (same gap, same 16px inset),
+  // so on a wide screen each figure starts where a card's content starts and
+  // the sparkline fills the last column. A phone keeps one wrapping row.
   return (
-    <Card className="tnum flex-row flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm">
-      <div className="flex items-center gap-2">
+    <Card className="tnum flex flex-row flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm sm:grid sm:grid-cols-2 sm:gap-x-3 sm:px-0 lg:grid-cols-4">
+      <div className="flex items-center gap-2 sm:px-4">
         <span className={cn("size-2 rounded-full", offline ? "bg-offline" : "bg-online")} />
         <span className="font-medium">{online.length} / {nodes.length}</span>
         <span className="text-xs text-muted-foreground">{offline ? `${offline} 个离线` : "在线"}</span>
       </div>
-      <Segment label="今日" down={bytes(sum((n) => n.day_rx))} up={bytes(sum((n) => n.day_tx))} />
-      <div className="flex min-w-0 flex-1 items-center gap-4">
-        <Segment label="实时" down={rate(now.rx)} up={rate(now.tx)} className="shrink-0" />
-        <div className="ml-auto w-24 min-w-0 sm:w-40">
-          <Spark
-            series={[
-              { values: history.map((s) => s.rx), className: "text-foreground" },
-              { values: history.map((s) => s.tx), className: "text-muted-foreground" },
-            ]}
-          />
-        </div>
+      <Segment label="今日" down={bytes(sum((n) => n.day_rx))} up={bytes(sum((n) => n.day_tx))} className="sm:px-4" />
+      <Segment label="实时" down={rate(now.rx)} up={rate(now.tx)} className="sm:px-4" />
+      <div className="min-w-0 flex-1 basis-24 sm:px-4">
+        <Spark
+          series={[
+            { values: history.map((s) => s.rx), className: "text-foreground" },
+            { values: history.map((s) => s.tx), className: "text-muted-foreground" },
+          ]}
+        />
       </div>
     </Card>
   )
