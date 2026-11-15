@@ -4,8 +4,8 @@
 //
 // Nothing imports it, so the bundle never includes it.
 import {
-  axisBytes, axisTop, bytes, cpuName, cycle, daysUntil, despike, money, osName, pair, percent, quarters,
-  RATE_FLOOR, rateAxis, sinceSeen, tickClock, timeTicks, uptime, windows, withGaps,
+  axisBytes, axisTop, bytes, cpuName, cycle, daysUntil, despike, money, nextReset, osName, pair, percent,
+  quarters, RATE_FLOOR, rateAxis, sinceSeen, tickClock, timeTicks, uptime, windows, withGaps,
 } from "./format.ts"
 
 let failed = 0
@@ -152,6 +152,29 @@ eq(Math.round(sinceSeen({ last_seen: Date.now() / 1000 - 300 })), 300, "旧 hub 
   eq(daysUntil(at(-3)), -3, "已过期为负")
   eq(daysUntil(null), null, "无到期日")
   eq(daysUntil("不是日期"), null, "无法解析的日期")
+}
+
+// nextReset: the next turn of a plan's traffic period, anchored on the hub's
+// month_start, and the calendar days to it. A reset past a month's end lands on
+// its last day, as the hub opens the period.
+{
+  const at = (day: string, reset: number, start: string | null = "2026-11-01") =>
+    nextReset(reset, start, new Date(`${day}T09:00:00`))
+  const date = (r: ReturnType<typeof nextReset>) =>
+    r && `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, "0")}-${String(r.date.getDate()).padStart(2, "0")}`
+  eq(at("2026-11-15", 1)?.days, 16, "1 号重置，15 号看是 16 天后")
+  eq(date(at("2026-11-15", 1)), "2026-12-01", "重置日落在下一个月")
+  eq(at("2026-11-10", 15, "2026-10-15")?.days, 5, "本期内，按新月计")
+  eq(date(at("2026-11-10", 15, "2026-10-15")), "2026-11-15", "本期的重置日")
+  eq(date(at("2026-02-01", 31, "2026-01-31")), "2026-02-28", "31 号在二月落到月末")
+  eq(date(at("2028-02-01", 31, "2028-01-31")), "2028-02-29", "闰年二月仍是 29 号")
+  eq(date(at("2026-03-01", 31, "2026-02-28")), "2026-03-31", "二月起始，下一次仍回到 31")
+  eq(date(at("2026-12-20", 1, "2026-12-01")), "2027-01-01", "跨年")
+  eq(at("2026-11-15", 20, null)?.days, 5, "无 month_start 时从今天数")
+  eq(date(at("2026-11-15", 10, null)), "2026-12-10", "过了本月重置日就看下一个月")
+  eq(at("2026-11-10", 10, null)?.days, 30, "重置日当天已是本期开始")
+  eq(nextReset(0, "2026-11-01"), null, "没有重置日")
+  eq(nextReset(Number.NaN, "2026-11-01"), null, "重置日不是数字")
 }
 
 eq(uptime(0), "—", "没上报过就不写时长")

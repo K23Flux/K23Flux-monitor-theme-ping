@@ -80,6 +80,54 @@ export function daysUntil(date?: string | null): number | null {
   return Math.ceil((target - Date.now()) / 86400000)
 }
 
+/** The reset date in `month`, a day past the month's end landing on its last. */
+function resetOn(year: number, month: number, day: number): Date {
+  return new Date(year, month, Math.min(day, new Date(year, month + 1, 0).getDate()))
+}
+
+/**
+ * The next traffic reset of a plan resetting on `resetDay` each month, and the
+ * whole days from `today` to it.
+ *
+ * Anchored on the hub's `monthStart` -- the start of the period the usage
+ * figures beside it belong to -- rather than on today, so the date does not ride
+ * the visitor's clock; only the countdown is read from it. A reset day past a
+ * short month's end lands on that month's last day, the rule the hub itself
+ * opens a period by. A hub predating `month_start` leaves the reset to be
+ * counted from today instead. Null when the plan carries no reset day.
+ */
+export function nextReset(
+  resetDay: number,
+  monthStart?: string | null,
+  today = new Date(),
+): { days: number; date: Date } | null {
+  const day = Math.floor(resetDay)
+  if (!(day >= 1 && day <= 31)) return null
+  const start = monthStart ? new Date(`${monthStart}T00:00:00`) : null
+  const period = start && !Number.isNaN(start.getTime()) ? start : null
+  const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  let next: Date
+  if (period) {
+    // The period began in the month holding its reset day, so the next one is
+    // that month's successor.
+    next = resetOn(period.getFullYear(), period.getMonth() + 1, day)
+  } else {
+    const month = resetOn(midnight.getFullYear(), midnight.getMonth(), day)
+    next = midnight.getTime() < month.getTime()
+      ? month
+      : resetOn(midnight.getFullYear(), midnight.getMonth() + 1, day)
+  }
+  // Counted on the calendar rather than in milliseconds: a daylight-saving
+  // change makes one day 23 or 25 hours long.
+  const days = Math.round(
+    (Date.UTC(next.getFullYear(), next.getMonth(), next.getDate()) -
+      Date.UTC(midnight.getFullYear(), midnight.getMonth(), midnight.getDate())) / 86400000,
+  )
+  // A visitor's clock a day ahead of the hub's calendar would otherwise read a
+  // reset that has already come as negative.
+  return { days: Math.max(0, days), date: next }
+}
+
 /**
  * No expiry and no traffic cap are both rendered as the absence of a ceiling.
  * U+221E rather than the emoji, which arrives as a coloured tile from whatever

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { RotateCw } from "lucide-react"
 import {
   Area, AreaChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer,
   Tooltip, XAxis, YAxis, type DotItemDotProps,
@@ -10,7 +11,7 @@ import { Country, Status } from "@/components/NodeCard"
 import { ProbeRedesign } from "@/components/ProbeRedesign"
 import { api, type Node } from "@/lib/api"
 import {
-  axisBytes, axisTop, bytes, cycle, quarters, cpuName, FOREVER, money, osName, rate, RATE_FLOOR,
+  axisBytes, axisTop, bytes, cycle, quarters, cpuName, FOREVER, money, nextReset, osName, rate, RATE_FLOOR,
   rateAxis, tickClock, timeTicks, windows, withGaps,
 } from "@/lib/format"
 
@@ -186,6 +187,9 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
   }, [node.id, hours, attempt])
 
   const m = node.metrics
+  // When this period's allowance turns over, for the header. Plans reset on a
+  // day of the month, and the hub alone knows which period today falls in.
+  const reset = nextReset(node.traffic_reset_day, node.month_start)
   // The hub answers in seconds; the time axis requires milliseconds. Each rate
   // also spans from its mean to its peak, which is the band drawn behind the
   // line; without a peak the band has no height. The rates drawn are lifted to
@@ -267,6 +271,18 @@ export function NodeDetail({ node, historyDays }: { node: Node; historyDays: num
           <Badge className="font-normal">
             agent {node.agent_version}
           </Badge>
+        )}
+        {/* Quiet, like the expiry at a card's top right: the header's other
+            items say what the machine is, this one when its allowance turns
+            over. On a phone it wraps to its own line, still on the right. */}
+        {reset && (
+          <span
+            className="tnum ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+            title={`${reset.date.getMonth() + 1} 月 ${reset.date.getDate()} 日重置流量`}
+          >
+            <RotateCw className="size-3" aria-hidden />
+            流量 {reset.days === 0 ? "今天" : reset.days === 1 ? "明天" : `${reset.days} 天后`}重置
+          </span>
         )}
       </div>
 
